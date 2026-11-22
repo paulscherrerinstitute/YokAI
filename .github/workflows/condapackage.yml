@@ -43,6 +43,10 @@ jobs:
       env:
         ANACONDA_TOKEN: ${{ secrets.ANACONDA_TOKEN }}
       run: |
-        $CONDA/bin/conda build --token $ANACONDA_TOKEN .conda-recipe
+        if [ -z "$ANACONDA_TOKEN" ]; then
+          echo "error: ANACONDA_TOKEN is not set, add it as a secret" >&2
+          exit 1
+        fi
+        $CONDA/bin/conda build --token "$ANACONDA_TOKEN" .conda-recipe
 
 
