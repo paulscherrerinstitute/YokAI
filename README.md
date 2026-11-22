@@ -45,7 +45,7 @@ Traceback (most recent call last):
 
 ## Plugins
 
-A bare `ai = YokAI()` works in any IPython/Jupyter session. It knows the names, types and signatures of what's in your session, plus your recent code. It cannot look up values, so `x = 5` shows up as `x: int`, and an array as `arr: ndarray` with no shape or contents.
+A bare `ai = YokAI()` works in any IPython/Jupyter session. It knows the names, types and signatures of what's in your session, plus your recent code. It cannot look up values, so `x = 5` shows up as `x: int`, and a numpy array as `arr: ndarray` with no shape or contents.
 
 For it to know about a specific library, a plugin is needed:
 - [sfdata](https://github.com/paulscherrerinstitute/sf_datafiles/blob/master/sfdata/ai/plugin.py)
