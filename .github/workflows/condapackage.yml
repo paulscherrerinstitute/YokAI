@@ -13,6 +13,14 @@ jobs:
     steps:
     - uses: actions/checkout@v2
 
+    - name: Install conda if the runner has none
+      run: |
+        if [ -z "$CONDA" ]; then
+          wget -q https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh -O miniforge.sh
+          bash miniforge.sh -b -p "$HOME/miniforge"
+          echo "CONDA=$HOME/miniforge" >> "$GITHUB_ENV"
+        fi
+
     - name: Prepare
       run: |
         $CONDA/bin/conda config --set report_errors false
