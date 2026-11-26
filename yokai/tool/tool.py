@@ -9,10 +9,7 @@ from .error import ToolError
 from .get_source import get_source
 
 
-TARGET_DESCRIPTION = """\
-A reference, i.e., a variable name in the user's session followed by attributes (e.g., obj.x) \
-or a qualified name in a loaded module (e.g., collections.OrderedDict)\
-"""
+TARGET_DESCRIPTION = "A reference, i.e., a variable name in the user's session followed by attributes (e.g., obj.x) or a qualified name in a loaded module (e.g., collections.OrderedDict)"
 
 ARGUMENTS_FORMAT = '{"target": "…"}'
 
@@ -51,8 +48,10 @@ def look_up_tool(tool_name):
     try:
         return TOOLS[tool_name]
     except KeyError:
+        msg = f"unknown tool `{tool_name}`"
         names = ", ".join(TOOLS)
-        raise ToolError(f"unknown tool `{tool_name}` -- the tools are: {names}")
+        hint = f"the tools are: {names}"
+        raise ToolError(msg, hint=hint)
 
 
 def read_target(arguments):
@@ -61,8 +60,9 @@ def read_target(arguments):
     except (ValueError, TypeError, KeyError):
         target = None
     if not isinstance(target, str):
-        expected = f"the arguments must be a JSON object {ARGUMENTS_FORMAT}"
-        raise ToolError(f"{expected}, got: {arguments}")
+        msg = f"malformed arguments: {arguments}"
+        hint = f"the arguments must be a JSON object {ARGUMENTS_FORMAT}"
+        raise ToolError(msg, hint=hint)
     return target
 
 

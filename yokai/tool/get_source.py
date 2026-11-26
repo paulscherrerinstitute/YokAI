@@ -22,6 +22,6 @@ def read_source(obj, description):
     try:
         return inspect.getsource(obj)
     except (OSError, TypeError): # e.g., builtins, or classes defined interactively
-        raise ToolError(f"no source available for {description}")
+        raise ToolError(f"no source available for {description}", hint="describe it instead")
 
 

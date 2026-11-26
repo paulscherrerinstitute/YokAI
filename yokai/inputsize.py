@@ -1,15 +1,12 @@
 
-MAX_RECENT_INPUTS = 10
 MAX_CHARACTERS = 8000
 
 
 def limit_recent_inputs(inputs):
     """
-    The newest of the inputs, at most MAX_RECENT_INPUTS,
-    as many whole inputs as fit into MAX_CHARACTERS in total.
+    The newest of the inputs, as many whole inputs as fit into MAX_CHARACTERS in total.
     If not even the newest fits, it is cut and sent alone.
     """
-    inputs = inputs[-MAX_RECENT_INPUTS:]
     kept = newest_that_fit(inputs)
     if inputs and not kept:
         return [cut_from_top(inputs[-1])]

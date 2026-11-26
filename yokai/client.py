@@ -1,24 +1,13 @@
-from openai import APIConnectionError, AuthenticationError, BadRequestError, OpenAI
+from openai import APIConnectionError, AuthenticationError, BadRequestError, Omit, OpenAI
 
-from .tokenstore import STORE_TOKEN_HINT, read_token
 from .tool import TOOL_SCHEMAS, format_tool_call, run_tool
 from .utils import typename
 
 
-MISSING_TOKEN_MESSAGE = f"""\
-YokAI has no token for the server. Store it once per account with:
-{STORE_TOKEN_HINT}\
-"""
-
-REJECTED_TOKEN_MESSAGE = f"""\
-The server rejected YokAI's token. Store a valid one with:
-{STORE_TOKEN_HINT}\
-"""
-
-CONTEXT_FULL_MESSAGE = """\
-The conversation is too long for the model's context window. \
-Start a new one with: ai.reset()\
-"""
+CONTEXT_FULL_MESSAGE = """
+The conversation is too long for the model's context window.
+Start a new one with: ai.reset()
+""".strip()
 
 # vLLM's context-full error has no exception type of its own
 CONTEXT_FULL_MARKER = "maximum context length"
@@ -26,22 +15,60 @@ CONTEXT_FULL_MARKER = "maximum context length"
 # the gateway's error for a model it doesn't serve
 MODEL_NOT_SERVED_MARKER = "Model not found"
 
-MODEL_NOT_SERVED_FIX = """\
-Choose another model or server with model= or url= when creating YokAI.\
-"""
+MODEL_NOT_SERVED_FIX = "Choose another model or server with model= or url= when creating YokAI."
 
 # seconds; the model list only adds to an error message, so it must not keep one waiting
 MODEL_LIST_TIMEOUT = 5
 
+TOKEN_MISSING_TEMPL = """
+The server at {url} did not accept a request without a token. Store one for it with:
+    from yokai import store_token
+    store_token("{url}")
+""".strip()
+
+TOKEN_REJECTED_TEMPL = """
+The server at {url} rejected YokAI's token. Store a valid one with:
+    from yokai import store_token
+    store_token("{url}")
+or, if the server needs no token, remove it with:
+    from yokai import remove_token
+    remove_token("{url}")
+""".strip()
+
 
 def make_client(url):
     """
-    Returns an OpenAI client using the stored token, or None if there is no token stored.
+    Returns an OpenAI client that holds no (real) key.
+    The openai package refuses to build a client without a key.
+    The dummy key is never sent as every request sets the proper header or omits it entirely.
     """
-    token = read_token()
-    if not token:
-        return None
-    return OpenAI(base_url=url, api_key=token)
+    return OpenAI(base_url=url, api_key="dummy")
+
+
+
+class AuthorizedClient:
+    """
+    The client as one question uses it:
+    every request carries the question's Authorization header,
+    Bearer <token>, or none at all without a token, so that the server decides.
+    The header replaces the client's key, also through with_options.
+    """
+
+    def __init__(self, client, token):
+        self.client = client
+        self.has_token = token is not None
+        # Omit() is rejected among a client's default headers, so it goes with each request
+        authorization = Omit() if token is None else f"Bearer {token}"
+        self.headers = {"Authorization": authorization}
+
+    def create_completion(self, **request):
+        completions = self.client.chat.completions
+        return completions.create(**request, extra_headers=self.headers)
+
+    def list_models(self, **options):
+        configured_client = self.client.with_options(**options)
+        return configured_client.models.list(extra_headers=self.headers)
+
 
 
 def request_answer(client, model, earlier_messages, question_messages, namespace, plugins, frontend):
@@ -72,8 +99,7 @@ def request_message(client, model, messages):
     The thinking output in messages is never sent back to the model.
     """
     messages = without_thinking(messages)
-    completions = client.chat.completions
-    response = completions.create(model=model, messages=messages, tools=TOOL_SCHEMAS)
+    response = client.create_completion(model=model, messages=messages, tools=TOOL_SCHEMAS)
     message = response.choices[0].message
     return message.model_dump(exclude_none=True)
 
@@ -107,7 +133,7 @@ def strip_thinking(message):
 
 def describe_error(exc, client, url, model):
     if isinstance(exc, AuthenticationError):
-        return REJECTED_TOKEN_MESSAGE
+        return describe_authentication_error(client, url)
     if isinstance(exc, APIConnectionError): # includes timeouts (APITimeoutError)
         return f"YokAI cannot reach the server at {url}: {exc}"
     detail = read_error_detail(exc)
@@ -117,6 +143,11 @@ def describe_error(exc, client, url, model):
         if MODEL_NOT_SERVED_MARKER in detail:
             return describe_model_not_served(client, url, model)
     return f"{typename(exc)}: {detail}"
+
+
+def describe_authentication_error(client, url):
+    templ = TOKEN_REJECTED_TEMPL if client.has_token else TOKEN_MISSING_TEMPL
+    return templ.format(url=url)
 
 
 def read_error_detail(exc):
@@ -143,9 +174,8 @@ def read_served_models(client):
     """
     Returns the IDs of the models the server serves or None if the model list cannot be read.
     """
-    quick_client = client.with_options(timeout=MODEL_LIST_TIMEOUT, max_retries=0)
     try:
-        models = quick_client.models.list()
+        models = client.list_models(timeout=MODEL_LIST_TIMEOUT, max_retries=0)
         return [m.id for m in models]
     # the list only adds to the message: no failure may replace the error being reported
     except Exception:

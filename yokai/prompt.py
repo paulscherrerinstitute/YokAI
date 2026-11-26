@@ -38,12 +38,16 @@ def read_faq(path):
         return None
 
 
-def make_user_message(question, current_input, new_inputs):
+def make_user_message(question, unanswered_note, current_input, new_inputs):
     """
-    The question, followed by the rest of the current input, if any,
+    The question, followed by
+    the note on the questions left unanswered, if any,
+    the rest of the current input, if any,
     and the most recent of the inputs since the previous question.
     """
     content = [question]
+    if unanswered_note:
+        content.append(unanswered_note)
     if current_input:
         content.append(format_current_input(cut_from_top(current_input)))
     if new_inputs:

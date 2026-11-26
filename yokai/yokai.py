@@ -1,47 +1,42 @@
 from IPython import get_ipython
 from openai import OpenAIError
 
-from .client import MISSING_TOKEN_MESSAGE, describe_error, make_client, request_answer, without_thinking
+from .client import AuthorizedClient, describe_error, make_client, request_answer, without_thinking
 from .currentinput import without_asking_statements
+from .defaults import DEFAULT_MAGIC_NAME, DEFAULT_MODEL, DEFAULT_URL
 from .frontend import choose_frontend
-from .magic import register_magic
+from .magic import check_magic_name, register_magic, registered_magic_names
 from .prompt import make_system_prompt, make_user_message
+from .recentinputs import read_recent_inputs, record_asked_from
+from .tokenstore import read_token
+from .unanswered import INTERRUPTED_REASON, failed_reason, make_unanswered_note
 
-
-DEFAULT_URL = "https://ai.psi.ch/api/"
-DEFAULT_MODEL = "Qwen3.8-27B"
 
 INTERRUPTED_MESSAGE = "YokAI was interrupted; the conversation is unchanged."
 
 
 class YokAI:
 
-    def __init__(self, url=DEFAULT_URL, model=DEFAULT_MODEL, *, plugins=(), shell=None, client=None):
+    def __init__(self, url=DEFAULT_URL, model=DEFAULT_MODEL, *, plugins=(), magic=DEFAULT_MAGIC_NAME):
+        # checked first, so that a wrong name registers nothing and builds no client
+        check_magic_name(magic)
         self.url = url
         self.model = model
         self.plugins = tuple(plugins)
-        if client is None:
-            client = make_client(url)
-        self.client = client
-        if shell is None:
-            shell = get_ipython()
+        self.client = make_client(url)
+        shell = get_ipython()
         self.shell = shell
         self.frontend = choose_frontend(shell)
-        if shell is not None: # no shell outside IPython
-            register_magic(shell, self)
+        register_magic(shell, self, magic)
         self.conversation = []
         self.last = []
+        self.unanswered = []
         # In[0] is always "", so the first question gets the inputs from In[1] on
         self.previous_question_at = 0
 
 
     def ask(self, question):
         frontend = self.frontend
-
-        if self.client is None:
-            frontend.show_error(MISSING_TOKEN_MESSAGE)
-            return
-
         shell = self.shell
         namespace = shell.user_ns
         hidden = shell.user_ns_hidden
@@ -50,25 +45,33 @@ class YokAI:
 
         # IPython adds an input to In before running it: the last is this question's
         asked_at = len(inputs) - 1
-        current_input = without_asking_statements(inputs[asked_at])
-        new_inputs = read_new_inputs(inputs, self.previous_question_at, asked_at)
+        record_asked_from(shell, asked_at)
+        magic_names = registered_magic_names(shell)
+        current_input = without_asking_statements(inputs[asked_at], magic_names)
+        recent_inputs = read_recent_inputs(shell, self.previous_question_at, asked_at)
 
         # set before the request, so that it holds a failed question, too
-        self.last = [make_user_message(question, current_input, new_inputs)]
+        unanswered_note = make_unanswered_note(self.unanswered, question)
+        self.last = [make_user_message(question, unanswered_note, current_input, recent_inputs)]
         earlier_messages = [system_prompt, *self.conversation]
 
         try:
             with frontend.progress():
                 answer = self._request_answer(earlier_messages)
         except QuestionFailed as exc:
-            frontend.show_error(str(exc))
+            description = str(exc)
+            reason = failed_reason(description)
+            frontend.show_error(description)
+            self.unanswered.append((question, reason))
             return
         except KeyboardInterrupt:
             frontend.show_error(INTERRUPTED_MESSAGE)
+            self.unanswered.append((question, INTERRUPTED_REASON))
             return
 
         # the question joins the conversation only once its answer is complete
         self.conversation.extend(without_thinking(self.last))
+        self.unanswered = []
         self.previous_question_at = asked_at
         frontend.show_answer(answer["content"])
 
@@ -77,10 +80,13 @@ class YokAI:
         """
         Raises QuestionFailed with a description of the request error.
         Describing the error can read the model list, so ctrl-c must be caught around it.
+        The token store is read at each question, so that the instance never holds a token
+        and storing or removing one takes effect at the next question.
         """
+        authorized_client = AuthorizedClient(self.client, read_token(self.url))
         try:
             return request_answer(
-                self.client,
+                authorized_client,
                 self.model,
                 earlier_messages,
                 self.last,
@@ -89,12 +95,13 @@ class YokAI:
                 self.frontend
             )
         except OpenAIError as exc:
-            description = describe_error(exc, self.client, self.url, self.model)
+            description = describe_error(exc, authorized_client, self.url, self.model)
             raise QuestionFailed(description) from exc
 
 
     def reset(self):
         self.conversation = []
+        self.unanswered = []
 
 
 
@@ -102,16 +109,5 @@ class QuestionFailed(Exception):
     """
     A question whose request failed, described with the cause and the fix.
     """
-
-
-
-def read_new_inputs(inputs, previous_question_at, asked_at):
-    """
-    The inputs between the previous question and this one.
-    A failed question asked again word for word is left out, so it is not sent twice.
-    """
-    question_input = inputs[asked_at]
-    between = inputs[previous_question_at + 1:asked_at]
-    return [i for i in between if i != question_input]
 
 

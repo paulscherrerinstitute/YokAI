@@ -5,7 +5,7 @@ from ..staticinspect import is_own
 from ..utils import typename
 
 from .error import ToolError
-from .kinds import is_data_descriptor, unwrap_method
+from .kinds import is_data_descriptor, kind_of, unwrap_method
 
 
 def resolve(namespace, target):
@@ -15,10 +15,9 @@ def resolve(namespace, target):
     """
     parts = target.split(".")
     if not all(p.isidentifier() for p in parts):
-        raise ToolError(
-            f"`{target}` is neither a reference nor a qualified name "
-            "-- only dotted names are supported, no keys, no calls"
-        )
+        msg = f"`{target}` is neither a reference nor a qualified name"
+        hint = "only dotted names are supported, no keys, no calls"
+        raise ToolError(msg, hint=hint)
 
     try:
         return resolve_reference(namespace, parts)
@@ -29,11 +28,16 @@ def resolve(namespace, target):
         return resolve_qualified_name(parts)
     except ToolError as exc:
         qualified_name_error = exc
-    raise ToolError(
-        f"`{target}` resolves neither as a reference ({reference_error}) "
-        f"nor as a qualified name ({qualified_name_error}) "
-        "-- modules are never imported"
-    )
+
+    as_reference = f"as a reference ({reference_error.message})"
+    as_qualified_name = f"as a qualified name ({qualified_name_error.message})"
+    msg = f"`{target}` resolves neither {as_reference} nor {as_qualified_name}"
+
+    hints = [e.hint for e in (reference_error, qualified_name_error) if e.hint]
+    hints.append("modules are never imported")
+    hint = "; ".join(dict.fromkeys(hints))
+
+    raise ToolError(msg, hint=hint)
 
 
 def resolve_reference(namespace, parts):
@@ -65,15 +69,28 @@ def step_into(obj, prefix, steps):
     check_not_own(obj, prefix)
     for step in steps:
         if is_data_descriptor(obj):
-            raise ToolError(f"`{prefix}` is a {typename(obj)} and its value is not read")
+            msg = f"`{prefix}` is a {typename(obj)} and its value is not read"
+            hint = f"describe `{prefix}` instead"
+            raise ToolError(msg, hint=hint)
         try:
             obj = inspect.getattr_static(obj, step)
         except AttributeError:
-            raise ToolError(f"`{prefix}` has no attribute `{step}`")
+            msg = f"`{prefix}` has no attribute `{step}`"
+            hint = make_missing_attribute_hint(obj, prefix, step)
+            raise ToolError(msg, hint=hint)
         obj = unwrap_method(obj)
         prefix += "." + step
         check_not_own(obj, prefix)
     return obj
+
+
+def make_missing_attribute_hint(obj, prefix, step):
+    # a module's submodule is its attribute only once it is loaded
+    if kind_of(obj) == "module":
+        submodule = f"`{prefix}.{step}` may be a submodule that is not loaded"
+        describe = f"describe `{prefix}` to list its names"
+        return f"{submodule}; {describe}"
+    return f"__getattr__ is never run, so describe `{prefix}` to list its attributes"
 
 
 def check_not_own(obj, prefix):
