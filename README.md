@@ -1,6 +1,6 @@
 # YokAI
 
-An LLM assistant for IPython/Jupyter sessions.
+An LLM assistant for IPython/Jupyter sessions compatible with any LLM host that uses the [OpenAI API](https://github.com/openai/openai-python).
 
 ## Setup
 
@@ -12,6 +12,8 @@ store_token()
 ```
 
 It is stored in `$XDG_CONFIG_HOME/yokai/token` (default: `~/.config/yokai/token`), readable only by you.
+
+If you are not using the default URL, provide your own like such: `store_token(url)`.
 
 ## Usage
 
@@ -26,6 +28,8 @@ ai.ask("now straighten them out") # the conversation continues
 ```
 
 To start a fresh conversation, you may use `ai.reset()`.
+
+If you are not using the default URL, provide your own like this: `ai = YokAI(url)`. Similarly, you can select the model via `ai = YokAI(url, model="...")`.
 
 ### Magics
 
@@ -42,6 +46,8 @@ Creating a `YokAI` object registers the line magic `%yokai`:
 Traceback (most recent call last):
 ...
 ```
+
+You can customize the magic name via `ai = YokAI(magic="si")`.
 
 ## Plugins
 
