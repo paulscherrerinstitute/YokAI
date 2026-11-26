@@ -13,7 +13,7 @@ store_token()
 
 It is stored in `$XDG_CONFIG_HOME/yokai/token` (default: `~/.config/yokai/token`), readable only by you.
 
-If you are not using the default URL, provide your own like such: `store_token(url)`.
+If you are not using the default URL, provide your own like this: `store_token(url)`.
 
 ## Usage
 
