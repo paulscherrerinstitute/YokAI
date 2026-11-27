@@ -1,15 +1,22 @@
 from IPython import get_ipython
 from openai import OpenAIError
 
+from .briefing import (
+    INTERRUPTED_REASON,
+    failed_reason,
+    format_mood,
+    make_system_prompt,
+    make_unanswered_note,
+    make_user_message,
+    read_current_input,
+    read_recent_inputs,
+    record_asked_from
+)
 from .client import AuthorizedClient, describe_error, make_client, request_answer, without_thinking
-from .currentinput import without_asking_statements
 from .defaults import DEFAULT_MAGIC_NAME, DEFAULT_MODEL, DEFAULT_URL
 from .frontend import choose_frontend
-from .magic import check_magic_name, register_magic, registered_magic_names
-from .prompt import make_system_prompt, make_user_message
-from .recentinputs import read_recent_inputs, record_asked_from
+from .magic import check_magic_name, register_magic
 from .tokenstore import read_token
-from .unanswered import INTERRUPTED_REASON, failed_reason, make_unanswered_note
 
 
 INTERRUPTED_MESSAGE = "YokAI was interrupted; the conversation is unchanged."
@@ -17,12 +24,14 @@ INTERRUPTED_MESSAGE = "YokAI was interrupted; the conversation is unchanged."
 
 class YokAI:
 
-    def __init__(self, url=DEFAULT_URL, model=DEFAULT_MODEL, *, plugins=(), magic=DEFAULT_MAGIC_NAME):
-        # checked first, so that a wrong name registers nothing and builds no client
+    def __init__(self, url=DEFAULT_URL, model=DEFAULT_MODEL, *, plugins=(), magic=DEFAULT_MAGIC_NAME, mood=None):
+        # checks first, so that a bad name or mood registers nothing and builds no client
         check_magic_name(magic)
+        format_mood(mood)
         self.url = url
         self.model = model
         self.plugins = tuple(plugins)
+        self.mood = mood
         self.client = make_client(url)
         shell = get_ipython()
         self.shell = shell
@@ -40,14 +49,13 @@ class YokAI:
         shell = self.shell
         namespace = shell.user_ns
         hidden = shell.user_ns_hidden
-        system_prompt = make_system_prompt(namespace, hidden, self.plugins)
+        system_prompt = make_system_prompt(namespace, hidden, self.plugins, self.mood)
         inputs = namespace["In"]
 
         # IPython adds an input to In before running it: the last is this question's
         asked_at = len(inputs) - 1
         record_asked_from(shell, asked_at)
-        magic_names = registered_magic_names(shell)
-        current_input = without_asking_statements(inputs[asked_at], magic_names)
+        current_input = read_current_input(shell, asked_at)
         recent_inputs = read_recent_inputs(shell, self.previous_question_at, asked_at)
 
         # set before the request, so that it holds a failed question, too

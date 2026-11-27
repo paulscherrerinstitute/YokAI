@@ -1,7 +1,7 @@
 from types import ModuleType
 
-from .plugin import PluginOverlapError
-from .staticinspect import ROUTINE_TYPES, format_instance, format_signature, is_own
+from ..plugin import PluginOverlapError
+from ..staticinspect import ROUTINE_TYPES, format_instance, format_signature, is_own
 
 
 def object_list(namespace, hidden, plugins=()):

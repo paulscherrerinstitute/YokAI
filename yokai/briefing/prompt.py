@@ -3,9 +3,11 @@ from importlib.resources import files
 
 from logzero import logger as log
 
+from ..files import read_markdown
+
 from .discovery import object_list
-from .files import read_markdown
 from .inputsize import cut_from_top, limit_recent_inputs
+from .mood import format_mood
 
 
 INSTRUCTIONS = read_markdown(files(__package__) / "instructions.md")
@@ -15,16 +17,18 @@ CURRENT_INPUT_HEADING = "The IPython input the question was asked in:"
 RECENT_INPUTS_HEADING = "Recent IPython inputs, oldest first:"
 
 
-def make_system_prompt(namespace, hidden, plugins):
+def make_system_prompt(namespace, hidden, plugins, mood):
     """
     Rebuilt for every question:
-    Core instructions, plugins paragraphs, plugins FAQs, and the object list.
+    Core instructions, plugins paragraphs, the mood, plugins FAQs, and the object list.
+    The mood is last in the instructions, so that its guard can refer to all above it.
     The object list is last, so the static sections before it stay in vLLM's prefix cache.
     """
     paragraphs = [p.paragraph for p in plugins]
+    mood_paragraph = format_mood(mood)
     faqs = [read_faq(p.faq_file) for p in plugins if p.faq_file is not None]
     objects = OBJECT_LIST_HEADING + object_list(namespace, hidden, plugins)
-    sections = [INSTRUCTIONS, *paragraphs, *faqs, objects]
+    sections = [INSTRUCTIONS, *paragraphs, mood_paragraph, *faqs, objects]
     content = "\n".join(s for s in sections if s is not None)
     return {"role": "system", "content": content}
 

@@ -7,7 +7,7 @@ setup(
     description="LLM assistant for interactive IPython sessions",
     author="Paul Scherrer Institute",
     packages=find_packages(include=["yokai", "yokai.*"]),
-    package_data={"yokai": ["*.md"]}
+    package_data={"yokai.briefing": ["*.md"]}
 )
 
 

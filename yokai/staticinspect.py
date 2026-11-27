@@ -19,9 +19,8 @@ SAFE_DEFAULT_TYPES = (type(None), bool, int, float, str)
 
 ELIDED = "…"
 
-# "yokai": YokAI's own objects are those from its package, by module or by type.
-# By type covers the plugins and presets wherever they are defined (e.g., slic.ai),
-# as they subclass the core's Plugin and YokAI.
+# YokAI's own objects are those from its package, by module or by type.
+# By type covers the plugins and presets as they subclass the core's Plugin and YokAI.
 OWN_PACKAGE = __package__
 
 

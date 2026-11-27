@@ -9,16 +9,14 @@ The conversation is too long for the model's context window.
 Start a new one with: ai.reset()
 """.strip()
 
-# vLLM's context-full error has no exception type of its own
+# both arrive as BadRequestError, told apart only by these markers in their detail
 CONTEXT_FULL_MARKER = "maximum context length"
-
-# the gateway's error for a model it doesn't serve
 MODEL_NOT_SERVED_MARKER = "Model not found"
 
 MODEL_NOT_SERVED_FIX = "Choose another model or server with model= or url= when creating YokAI."
 
-# seconds; the model list only adds to an error message, so it must not keep one waiting
-MODEL_LIST_TIMEOUT = 5
+# the model list only adds to an error message, so it must not keep one waiting
+MODEL_LIST_TIMEOUT = 5 # seconds
 
 TOKEN_MISSING_TEMPL = """
 The server at {url} did not accept a request without a token. Store one for it with:
@@ -57,7 +55,7 @@ class AuthorizedClient:
     def __init__(self, client, token):
         self.client = client
         self.has_token = token is not None
-        # Omit() is rejected among a client's default headers, so it goes with each request
+        # Omit() drops the header, so the dummy key is not sent
         authorization = Omit() if token is None else f"Bearer {token}"
         self.headers = {"Authorization": authorization}
 

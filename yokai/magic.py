@@ -21,7 +21,6 @@ For a question over several lines (e.g. with a pasted traceback):
 """
 
 #TODO: move to tests
-# the usage of the default magic, %yokai
 MAGIC_USAGE = MAGIC_USAGE_TEMPL.format(name=DEFAULT_MAGIC_NAME)
 
 
@@ -34,7 +33,7 @@ def check_magic_name(name):
         return
     if isinstance(name, str) and name.isidentifier():
         return
-    raise ValueError(f"the magic name must be a Python identifier or None, not {name!r}")
+    raise ValueError(f"the magic name must be a Python identifier or None (got {name!r})")
 
 
 def register_magic(shell, ai, name):

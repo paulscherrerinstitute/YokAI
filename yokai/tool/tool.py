@@ -67,7 +67,6 @@ def read_target(arguments):
 
 
 def make_schema(tool_name, tool):
-    # the tool's docstring tells the model what the tool does
     target = {"type": "string", "description": TARGET_DESCRIPTION}
     properties = {"target": target}
     parameters = {"type": "object", "properties": properties, "required": ["target"]}

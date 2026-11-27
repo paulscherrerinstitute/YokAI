@@ -9,7 +9,7 @@ MAGIC_CALLS = ("run_line_magic", "run_cell_magic")
 
 def without_asking_statements(source, magic_names):
     """
-    An input asked from the current input or a recent one,
+    An input (current or recent) that a question was asked from,
     without the top-level statements that call ask or one of the magics,
     cut by their line ranges, so that the rest keeps its text and comments.
     None if nothing remains.
@@ -23,7 +23,6 @@ def without_asking_statements(source, magic_names):
     for statement in tree.body:
         if is_asking_statement(statement, magic_names):
             asking_lines.update(range(statement.lineno, statement.end_lineno + 1))
-    # split at "\n" only, as ast does: str.splitlines also splits at e.g. form feeds
     lines = source.split("\n")
     kept = [line for number, line in enumerate(lines, 1) if number not in asking_lines]
     rest = "\n".join(kept).strip("\n")

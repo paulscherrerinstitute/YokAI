@@ -1,7 +1,8 @@
 from weakref import WeakKeyDictionary
 
-from .currentinput import without_asking_statements
-from .magic import registered_magic_names
+from ..magic import registered_magic_names
+
+from .askingstatements import without_asking_statements
 
 
 MAX_RECENT_INPUTS = 10

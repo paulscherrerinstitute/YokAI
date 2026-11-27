@@ -8,7 +8,6 @@ from .kinds import METHOD_WRAPPERS, is_data_descriptor, kind_of, unwrap_method
 from .resolve import resolve
 
 
-# what a class's vars() holds for its methods
 METHOD_MEMBER_TYPES = (FunctionType, *METHOD_DESCRIPTOR_TYPES, *METHOD_WRAPPERS)
 
 INDENT = "  "

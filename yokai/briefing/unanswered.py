@@ -1,15 +1,13 @@
 
-# at most this many unanswered questions are shown, the newest
 MAX_SHOWN_UNANSWERED = 3
 
-UNANSWERED_NOTE_HEADING = (
-    "Background, to be used only if the question refers to it: "
-    "earlier questions that went unanswered, grouped by reason, oldest first in each group."
-)
+UNANSWERED_NOTE_HEADING = """
+Background, to be used only if the question refers to it:
+Earlier questions that went unanswered, grouped by reason, oldest first in each group.
+""".strip()
 
 FAILED_TEMPL = "The request failed, and the user was shown:\n\n```text\n{description}\n```"
 
-# the reason for a question the user interrupted with ctrl-c
 INTERRUPTED_REASON = "The user interrupted YokAI:"
 
 

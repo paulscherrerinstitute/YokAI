@@ -29,7 +29,7 @@ class NotebookFrontend:
             self.progress_area = None
 
     def show_tool_call(self, text):
-        # tool calls are only run while a question is in progress
+        # called only inside progress(), so progress_area is set
         self.progress_area.add_tool_call(text)
 
     def show_answer(self, text):
